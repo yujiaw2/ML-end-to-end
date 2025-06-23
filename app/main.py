@@ -7,28 +7,31 @@ import os
 import logging
 from fastapi import HTTPException
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Step 1: Create FastAPI app
 app = FastAPI()
 
 # Step 2: Set up logging to file
 # logging.basicConfig(level=logging.INFO)
-LOG_DIR = os.path.join(BASE_DIR, "..", "log")
+LOG_DIR = BASE_DIR / "log"
 os.makedirs(LOG_DIR, exist_ok=True)
 
 logging.basicConfig(
     level=logging.INFO,
-    filename=os.path.join(LOG_DIR, "prediction.log"),
+    filename=BASE_DIR / "log" / "service.log",
     filemode="a",
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
 # Step 3: Load the pre-trained model
-# Resolve the path to model.pkl relative to this file
-MODEL_PATH = os.path.join(BASE_DIR, "..", "model", "model.pkl")
-model = joblib.load(MODEL_PATH)
+# # Resolve the path to model.pkl relative to this file
+# MODEL_PATH = os.path.join(BASE_DIR, "..", "models", "model.pkl")
+# model = joblib.load(MODEL_PATH)
 
+# Read the model from the environment variable
+MODEL_PATH = os.getenv("MODEL_PATH", str(BASE_DIR / "models" / "model.pkl"))
+model = joblib.load(MODEL_PATH)
 
 # Step 3: Define a prediction endpoint
 @app.post("/predict")

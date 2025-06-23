@@ -1,0 +1,20 @@
+services:
+  app:
+    build: .  # Use Dockerfile in the current directory to build the image
+    image: ml-api-demo:latest  # Name the built image
+    container_name: ml-api-demo  # Optional name for the running container
+
+    ports:
+      - "8000:8000" # Map host port 8000 to container port 8000
+
+    volumes:  # Mount local model directory to container
+      - ./models:/app/models       
+      - ./log:/app/log
+
+    environment:
+      - MODEL_PATH=/app/models/model.pkl  # Optional: let app read this path from env
+    
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    # This overrides CMD in Dockerfile if present; good for debugging or dynamic adjustments
+
+    restart: unless-stopped  # Automatically restart unless manually stopped
