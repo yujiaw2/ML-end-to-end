@@ -14,3 +14,6 @@ venv/
 
 # logs
 log/
+
+# env variables
+.env
