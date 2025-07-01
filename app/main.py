@@ -7,7 +7,7 @@ import joblib
 from fastapi import FastAPI, HTTPException
 from dotenv import load_dotenv
 from pydantic import RootModel, field_validator
-
+from contextlib import asynccontextmanager
 
 
 # load environment variables
@@ -31,8 +31,15 @@ logging.basicConfig(
 )
 
 
+@asynccontextmanager
+def lifespan(app: FastAPI):
+    app.state.model = load_model_from_file(DEFAULT_MODEL)
+    app.state.model_name = DEFAULT_MODEL
+    yield
+    
 # Initialize FastAPI
-app = FastAPI()
+app = FastAPI(lifespan=lifespan)
+
 
 # Model loading helper
 def load_model_from_file(model_filename: str):
@@ -40,10 +47,6 @@ def load_model_from_file(model_filename: str):
     if not model_path.exists():
         raise FileNotFoundError(f"Model file {model_filename} not found.")
     return joblib.load(model_path)
-
-# Load default model
-app.state.model = load_model_from_file(DEFAULT_MODEL)
-app.state.model_name = DEFAULT_MODEL
 
 
 # Pydantic input schemas
