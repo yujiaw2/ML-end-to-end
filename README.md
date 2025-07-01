@@ -15,7 +15,8 @@ ML-end-to-end/
 │   └── prediction.log
 ├── tests/              # test functions
 │   ├── test_model.py
-│   └── test_api.py
+│   ├── test_api.py
+│   └── test_api_mocked.py
 ├── requirements.txt    # Python dependencies
 ├── Dockerfile          # Container build file
 ├── docker-compose.yml  # Container service configuration
@@ -109,6 +110,7 @@ Test cases include:
 - Model loading and shape validation
 - FastAPI endpoints (/predict, /predict_batch, /use_model)
 - Input validation and expected failure responses
+- Mock-based tests for CI pipelines
 
 
 ## 🧱 Tech Stack
@@ -122,9 +124,10 @@ Test cases include:
 - Docker
 - Docker Compose
 - Pytest
+- GitHub Actions
 
 ## 📌 Future Extensions
-- CI/CD integration (GitHub Actions)
+- CI/CD integration (✅ mock tests done)
 - .env multi-environment support (.env.dev, .env.prod)
 - Model versioning and tracking with MLflow
 - Streamlit or React frontend
@@ -140,6 +143,11 @@ Test cases include:
 - ✅ Introduced `Pydantic`-based input validation with `field_validator`
 - ✅ Fixed module resolution for pytest via `pytest.ini` and `sys.path` patching
 - ✅ All tests passing; preparing for CI/CD and MLflow integration
+
+### 06/30/2025 Updates
+- ✅ CI setup using GitHub Actions
+- ✅ Mock-based tests for CI independence
+- ✅ FastAPI `lifespan` used for model loading
 
 ---
 
