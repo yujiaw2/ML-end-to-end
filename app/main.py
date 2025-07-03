@@ -30,23 +30,13 @@ logging.basicConfig(
     format = "%(asctime)s - %(levelname)s - %(message)s"
 )
 
-
-@asynccontextmanager
-def lifespan(app: FastAPI):
-    app.state.model = load_model_from_file(DEFAULT_MODEL)
-    app.state.model_name = DEFAULT_MODEL
-    yield
-    
-# Initialize FastAPI
-app = FastAPI(lifespan=lifespan)
-
-
 # Model loading helper
 def load_model_from_file(model_filename: str):
     model_path = MODEL_DIR / model_filename
     if not model_path.exists():
         raise FileNotFoundError(f"Model file {model_filename} not found.")
     return joblib.load(model_path)
+
 
 
 # Pydantic input schemas
@@ -68,52 +58,71 @@ class BatchModelInput(RootModel[List[List[float]]]):
         return v
 
 
-# API Endpoints
-@app.post("/predict")
-def predict(input: ModelInput):
-    try: 
-        x = [input.root]    
-        prediction = app.state.model.predict(x)
-        logging.info(f"[{app.state.model_name}] {x} => {prediction[0]}")
+def create_app(override_model=None) -> FastAPI:
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        model = override_model or load_model_from_file(DEFAULT_MODEL)
 
-        return {
-            "input": input.root,
-            "prediction": prediction[0]
-        }
-    except Exception as e:
-        logging.exception(f"Prediction error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        app.state.model = model
+        app.state.model_name = DEFAULT_MODEL
+        yield
+        
+    # Initialize FastAPI
+    app = FastAPI(lifespan=lifespan)
 
 
-@app.post("/predict_batch")
-def predict_batch(batch_input: BatchModelInput):
-    try:
-        x_batch = batch_input.root
-        predictions = app.state.model.predict(x_batch)
-        logging.info(f"[{app.state.model_name}] {x_batch} => {predictions.tolist()}")
+    # API Endpoints
+    @app.post("/predict")
+    def predict(input: ModelInput):
+        try: 
+            x = [input.root]    
+            prediction = app.state.model.predict(x)
+            logging.info(f"[{app.state.model_name}] {x} => {prediction[0]}")
 
-        return {
-            "predictions": predictions.tolist()
-        }
+            return {
+                "input": input.root,
+                "prediction": prediction[0]
+            }
+        except Exception as e:
+            logging.exception(f"Prediction error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
 
-    except Exception as e:
-        logging.exception(f"Batch prediction error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/models")
-def list_models():
-    return sorted([f.name for f in MODEL_DIR.glob("*.pkl")])
+    @app.post("/predict_batch")
+    def predict_batch(batch_input: BatchModelInput):
+        try:
+            x_batch = batch_input.root
+            predictions = app.state.model.predict(x_batch)
+            logging.info(f"[{app.state.model_name}] {x_batch} => {predictions.tolist()}")
 
-@app.get("/current_model")
-def current_model():
-    return {"model_name": app.state.model_name}
+            return {
+                "predictions": predictions.tolist()
+            }
 
-@app.post("/use_model")
-def switch_model(model_name: str):
-    try:
-        app.state.model = load_model_from_file(model_name)
-        app.state.model_name = model_name
-        return {"message": f"Switched to {model_name}"}
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        except Exception as e:
+            logging.exception(f"Batch prediction error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
 
+    @app.get("/models")
+    def list_models():
+        return sorted([f.name for f in MODEL_DIR.glob("*.pkl")])
+
+    @app.get("/current_model")
+    def current_model():
+        return {"model_name": app.state.model_name}
+
+    @app.post("/use_model")
+    def switch_model(model_name: str):
+        try:
+            app.state.model = load_model_from_file(model_name)
+            app.state.model_name = model_name
+            return {"message": f"Switched to {model_name}"}
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+
+    return app
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("app.main:create_app", factory=True, reload=True)

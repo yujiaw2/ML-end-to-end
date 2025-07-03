@@ -41,4 +41,4 @@ COPY . /app
 EXPOSE 8000
 
 # Step 7: Define the default command to run the FastAPI app
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]

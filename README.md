@@ -113,6 +113,14 @@ Test cases include:
 - Mock-based tests for CI pipelines
 
 
+## 🐳 Docker Notes
+If you're using Docker directly:
+```dockerfile
+CMD ["uvicorn", "app.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+```
+Note: Factory loading is required when using FastAPI's lifespan startup.
+
+
 ## 🧱 Tech Stack
 - Python 3.10+
 - scikit-learn
@@ -145,10 +153,13 @@ Test cases include:
 - ✅ All tests passing; preparing for CI/CD and MLflow integration
 
 ### 06/30/2025 Updates
-- ✅ CI setup using GitHub Actions
-- ✅ Mock-based tests for CI independence
-- ✅ FastAPI `lifespan` used for model loading
+- ✅ Refactored to use create_app() with lifespan for safe model loading.
+- ✅ Added mock-based tests (test_api_mocked.py) to support CI without real model files.
+- ✅ Integrated GitHub Actions for CI with separate test workflows.
+- ✅ Fixed test failures by aligning TestClient with async lifespan.
+- ✅ Updated Docker config to support FastAPI factory (--factory flag).
 
+###
 ---
 
 Feel free to fork, adapt, and build on this template!

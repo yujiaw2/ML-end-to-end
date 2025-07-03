@@ -14,7 +14,7 @@ services:
     env_file:
       - .env  # Load environment variables from .env file
     
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    command: uvicorn app.main:create_app --factory --host 0.0.0.0 --port 8000
     # This overrides CMD in Dockerfile if present; good for debugging or dynamic adjustments
 
     restart: unless-stopped  # Automatically restart unless manually stopped
