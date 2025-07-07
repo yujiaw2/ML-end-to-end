@@ -17,3 +17,6 @@ log/
 
 # env variables
 .env
+
+# mlflow
+mlruns/

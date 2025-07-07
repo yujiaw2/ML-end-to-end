@@ -10,6 +10,7 @@ services:
     volumes:  # Mount local model directory to container
       - ./models:/app/models       
       - ./log:/app/log
+      # - ./notebooks/mlruns:/app/mlruns
 
     env_file:
       - .env  # Load environment variables from .env file

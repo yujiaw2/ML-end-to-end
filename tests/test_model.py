@@ -1,12 +1,12 @@
 # tests/test_model.py
 import pytest
-from app.main import load_model_from_file, EXPECTED_FEATURE_DIM, DEFAULT_MODEL, MODEL_DIR
+from app.main import load_model_from_file, EXPECTED_FEATURE_DIM, DEFAULT_MODEL_LOCAL, MODEL_DIR
 
-MODEL_PATH = MODEL_DIR / DEFAULT_MODEL
+MODEL_PATH = MODEL_DIR / DEFAULT_MODEL_LOCAL
 
 @pytest.fixture(scope="module")
 def model():
-    return load_model_from_file(DEFAULT_MODEL)
+    return load_model_from_file(DEFAULT_MODEL_LOCAL)
 
 def test_model_file_exists():
     assert MODEL_PATH.exists(), f"Model file not found at {MODEL_PATH}"

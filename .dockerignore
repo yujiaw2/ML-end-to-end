@@ -16,3 +16,6 @@ log/
 
 # Ignore OS files
 .DS_Store
+
+# mlflow
+mlruns/

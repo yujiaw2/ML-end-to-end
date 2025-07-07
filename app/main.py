@@ -8,7 +8,7 @@ from fastapi import FastAPI, HTTPException
 from dotenv import load_dotenv
 from pydantic import RootModel, field_validator
 from contextlib import asynccontextmanager
-
+import mlflow
 
 # load environment variables
 load_dotenv()
@@ -17,8 +17,13 @@ load_dotenv()
 BASE_DIR = Path(os.path.dirname(os.path.abspath(__file__))).parent
 MODEL_DIR = BASE_DIR / os.getenv("MODEL_DIR", "models")
 LOG_DIR = BASE_DIR / os.getenv("LOG_DIR", "log")
-DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "model_v1.pkl")
 EXPECTED_FEATURE_DIM = 8
+USE_MLFLOW = os.getenv("USE_MLFLOW", "False").lower() == "true"
+DEFAULT_MODEL_LOCAL = os.getenv("DEFAULT_MODEL_LOCAL", "model_v1.pkl")
+DEFAULT_MODEL_MLFLOW = os.getenv("DEFAULT_MODEL_MLFLOW", "housing_price_model") 
+DEFAULT_MODEL_MLFLOW_ALIAS = os.getenv("DEFAULT_MODEL_MLFLOW_ALIAS", "prod")
+MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "file:///app/mlruns")
+mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 
 # Set up logging
 LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -30,14 +35,19 @@ logging.basicConfig(
     format = "%(asctime)s - %(levelname)s - %(message)s"
 )
 
-# Model loading helper
+
+# Model loading from local file system
 def load_model_from_file(model_filename: str):
     model_path = MODEL_DIR / model_filename
     if not model_path.exists():
         raise FileNotFoundError(f"Model file {model_filename} not found.")
     return joblib.load(model_path)
 
-
+# Model loading from MLflow
+def load_model_from_mlflow(model_name: str, model_alias: str):
+    model_uri = f"models:/{model_name}@{model_alias}"
+    return mlflow.sklearn.load_model(model_uri)
+    
 
 # Pydantic input schemas
 class ModelInput(RootModel[List[float]]):
@@ -61,10 +71,21 @@ class BatchModelInput(RootModel[List[List[float]]]):
 def create_app(override_model=None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        model = override_model or load_model_from_file(DEFAULT_MODEL)
+        if override_model:
+            model = override_model
+            model_name = "Overridden Model"
+            logging.info(f"Starting FastAPI with overridden model")
+        elif USE_MLFLOW:
+            model = load_model_from_mlflow(model_name=DEFAULT_MODEL_MLFLOW, model_alias=DEFAULT_MODEL_MLFLOW_ALIAS)
+            model_name = f"{DEFAULT_MODEL_MLFLOW}@{DEFAULT_MODEL_MLFLOW_ALIAS}"
+            logging.info(f"Starting FastAPI with MLflow model: {model_name}")
 
+        else:
+            model = load_model_from_file(DEFAULT_MODEL_LOCAL)
+            model_name = DEFAULT_MODEL_LOCAL
+            logging.info(f"Starting FastAPI with local model: {model_name}")
         app.state.model = model
-        app.state.model_name = DEFAULT_MODEL
+        app.state.model_name = model_name
         yield
         
     # Initialize FastAPI
@@ -105,20 +126,34 @@ def create_app(override_model=None) -> FastAPI:
 
     @app.get("/models")
     def list_models():
-        return sorted([f.name for f in MODEL_DIR.glob("*.pkl")])
+        if USE_MLFLOW:
+            client = mlflow.tracking.MlflowClient()
+            model = client.search_registered_models(filter_string=f"name LIKE '{DEFAULT_MODEL_MLFLOW}'")[0]
+            return sorted([m.key for m in model.aliases])
+        else:
+            return sorted([f.name for f in MODEL_DIR.glob("*.pkl")])
 
     @app.get("/current_model")
     def current_model():
         return {"model_name": app.state.model_name}
 
     @app.post("/use_model")
-    def switch_model(model_name: str):
-        try:
-            app.state.model = load_model_from_file(model_name)
-            app.state.model_name = model_name
-            return {"message": f"Switched to {model_name}"}
-        except FileNotFoundError as e:
-            raise HTTPException(status_code=404, detail=str(e))
+    def switch_model(model_version: str):
+        if USE_MLFLOW:
+            model_uri = f"models:/{DEFAULT_MODEL_MLFLOW}@{model_version}"
+            try:
+                app.state.model = load_model_from_mlflow(model_uri)
+                app.state.model_name = f"{DEFAULT_MODEL_MLFLOW}@{model_version}"
+                return {"message": f"Switched to {model_version} of {DEFAULT_MODEL_MLFLOW}"}
+            except mlflow.exceptions.MlflowException as e:
+                raise HTTPException(status_code=404, detail=str(e))
+        else:
+            try:
+                app.state.model = load_model_from_file(model_version)
+                app.state.model_name = model_version
+                return {"message": f"Switched to {model_version}"}
+            except FileNotFoundError as e:
+                raise HTTPException(status_code=404, detail=str(e))
 
     return app
 
