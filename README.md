@@ -33,7 +33,7 @@ Create a `.env` file in the project root:
 ```bash
 MODEL_DIR=models
 LOG_DIR=log
-DEFAULT_MODEL=model_v1.pkl
+DEFAULT_MODEL_LOCAL=model_v1.pkl
 ```
 
 ### 1. Set up virtual environment
@@ -44,7 +44,7 @@ pip install -r requirements.txt
 ```
 
 ### 2. Train and save model
-Refer to `notebooks/01.train.ipynb`
+Refer to `notebooks/01.train.ipynb` and `notebooks/01.train_mlflow.ipynb` 
 
 ### 3. Run with Docker Compose
 ```bash
@@ -52,6 +52,34 @@ docker compose up --build
 ```
 
 Visit Swagger UI at: [http://localhost:8000/docs](http://localhost:8000/docs)
+
+
+## 📒 Using MLflow
+
+This project supports both local model loading and **MLflow Model Registry**.
+
+To use MLflow:
+1. Set the following in `.env`:
+   ```env
+   USE_MLFLOW=true
+   MLFLOW_TRACKING_URI=file:///app/mlruns
+   DEFAULT_MODEL_MLFLOW=housing_price_model
+   DEFAULT_MODEL_MLFLOW_ALIAS=prod
+
+2. Train and register model (recommended: run inside Docker):
+```bash
+docker compose exec ml-api-demo bash
+python notebooks/02.train_mlflow.py
+```
+
+3. Verify in UI:
+```bash
+mlflow ui --backend-store-uri mlruns
+```
+
+4. When running FastAPI, it will automatically pull the registered model based on the alias.
+❗ Tip: Make sure to **train and register from inside the container**, so that the artifact paths are valid.
+
 
 ## 🔍 API Endpoints
 
@@ -91,6 +119,7 @@ Switch to a different model file.
 ```json
 {"model_name": "model_v2.pkl"}
 ```
+
 
 ## 🪵 Logging
 All requests and predictions are logged to `log/prediction.log` with timestamps.
@@ -137,17 +166,25 @@ Note: Factory loading is required when using FastAPI's lifespan startup.
 - MLflow
 
 ## 📌 Future Extensions
-- CI/CD integration (✅ mock tests done)
 - .env multi-environment support (.env.dev, .env.prod)
-- Model versioning and tracking with MLflow
+- MLflow remote tracking server
 - Streamlit or React frontend
 - Gunicorn + Nginx production deployment
 
 ## 🛠️ Development Log
+### 06/15/2025 Updates
+- ✅ Created model training pipeline
+- ✅ Set up Fast API + Uvicorn local service, supporting single and batch prediction
+- ✅ Added exception handling and logging
+
+### 06/22/2025 Updates
+- ✅ Completed containerization with docker and docker-compose
+- ✅ Added basic unit tests for model prediction
+- ✅ Set up volume mount for model and log files
 
 ### 06/29/2025 Updates
 - ✅ Added comprehensive API tests using `fastapi.testclient`
-- ✅ Created unit tests for model loading, prediction, and failure modes
+- ✅ Updated unit tests for model loading, prediction, and failure modes
 - ✅ Configured dynamic `BASE_DIR` + `.env` variable for path management
 - ✅ Enabled dynamic model switching & model directory scanning
 - ✅ Introduced `Pydantic`-based input validation with `field_validator`
@@ -155,22 +192,29 @@ Note: Factory loading is required when using FastAPI's lifespan startup.
 - ✅ All tests passing; preparing for CI/CD and MLflow integration
 
 ### 06/30/2025 Updates
-- ✅ Refactored to use create_app() with lifespan for safe model loading.
-- ✅ Added mock-based tests (test_api_mocked.py) to support CI without real model files.
+- ✅ Refactored to use `create_app()` with lifespan for safe model loading.
+- ✅ Added mock-based tests (`test_api_mocked.py`) to support CI without real model files.
 - ✅ Integrated GitHub Actions for CI with separate test workflows.
 - ✅ Fixed test failures by aligning TestClient with async lifespan.
 - ✅ Updated Docker config to support FastAPI factory (--factory flag).
 
 ### 07/06/2025 Updates
-- ✅ Refactored project to support loading MLflow-registered models inside Docker:
-  - Set mlflow.set_tracking_uri("file:/app/mlruns") to ensure model artifacts are accessible in container
-  - Updated Docker volumes to mount mlruns/ for persistence and model sharing
-- ✅ Updated main.py to support model loading from either MLflow registry or local files
+- ✅ Set up local MLflow tracking server, monitor the training process, record the parameters and metrics, and register models
+- ✅ Got familiar with experiments, runs, model register, model tag with MLflow
+- ✅ Updated main.py to support model loading from either MLflow registry or local files, use environment variable to 
 
 #### 📌 Reflection & Notes
 - ❗ Avoid registering models on the host if the container will be loading them, since artifact_location will be saved as an absolute host path and cannot be resolved inside the container
 - ✅ The correct approach is to train and register models inside the container, or use a shared remote backend
 - ✅ With FastAPI + MLflow integration, model loading logic should be handled inside a lifespan function to ensure proper startup behavior
+
+
+## 📚 Resources
+
+- [MLflow Documentation](https://mlflow.org/docs/latest/index.html)
+- [FastAPI Lifespan Docs](https://fastapi.tiangolo.com/advanced/events/)
+- [Docker Compose Reference](https://docs.docker.com/compose/)
+
 
 ###
 ---
